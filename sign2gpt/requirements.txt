@@ -1,0 +1,11 @@
+torch
+accelerate
+transformers==4.46.3
+peft
+pyyaml
+sacrebleu
+pillow
+pandas
+lmdb
+albumentations
+numpy

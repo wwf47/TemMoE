@@ -1,0 +1,118 @@
+# Sign2GPT temporal MoE on Phoenix-2014T (e12 k4, token routing).
+seed: 42
+
+data:
+  metadata_csv: /path/to/phoenix2014t_split.csv
+  lmdb_root: /path/to/phoenix2014t/lmdb_videos
+  batch_size: 6
+  num_workers: 8
+  max_frames: 256
+  stride: 2
+  random_shift: 6
+  img_size: 224
+  min_translation_length: 0
+  train_samples: null
+  val_samples: null
+
+model:
+  stage1_checkpoint: /path/to/stage1_phoenix/best_checkpoint.pt
+  vision_encoder:
+    use_legacy_encoder: true
+    model_name: dinov2-small
+    peft_config:
+      rank: 4
+      alpha: 4.0
+      dropout: 0.1
+      layers_to_transform: [9, 10, 11]
+    out_dim: 512
+    device: cuda
+    checkpoint_path: /path/to/dinov2_vits14_pretrain.pth
+  temporal_layers: [2, 2]
+  temporal_mlp_ratio: 4.0
+  temporal_dropout: 0.1
+  temporal_drop_path: 0.1
+  use_layer_scale: true
+  use_downsampler: true
+  use_pos_embed: true
+  projection_dropout: 0.1
+  lm_path: /path/to/facebook__xglm-1.7B
+  lora_rank: 16
+  lora_alpha: 4.0
+  lora_dropout: 0.1
+  gate_type: clamp
+  w_lora_ff: true
+  gate_init: 0.0
+  pretext: ""
+  adaptor_layers: null
+  lora_layers: null
+  freeze_vision: false
+  freeze_temporal: false
+  temporal_moe: true
+  temporal_moe_expert_scope: ffn
+  temporal_moe_block_indices: [1, 2]
+  temporal_routing_granularity: token
+  temporal_num_experts: 12
+  temporal_top_k: 4
+  temporal_use_shared_expert: true
+  temporal_moe_aux_loss_weight: 0.02
+  temporal_moe_router_noise: 0.10
+  temporal_router_temperature: 1.3
+  temporal_moe_schedule:
+    - start_epoch: 1
+      end_epoch: 10
+      top_k: 4
+      router_temperature: 1.3
+      router_noise: 0.10
+      aux_loss_weight: 0.020
+    - start_epoch: 11
+      end_epoch: 25
+      top_k: 4
+      router_temperature_start: 1.3
+      router_temperature_end: 1.0
+      router_noise_start: 0.08
+      router_noise_end: 0.04
+      aux_loss_weight_start: 0.020
+      aux_loss_weight_end: 0.005
+    - start_epoch: 26
+      end_epoch: 60
+      top_k: 4
+      router_temperature_start: 1.0
+      router_temperature_end: 0.75
+      router_noise_start: 0.04
+      router_noise_end: 0.01
+      aux_loss_weight_start: 0.005
+      aux_loss_weight_end: 0.001
+    - start_epoch: 61
+      top_k: 4
+      router_temperature: 0.75
+      router_noise: 0.01
+      aux_loss_weight: 0.0005
+  fusion_moe: false
+
+training:
+  epochs: 150
+  lr: 1.0e-4
+  weight_decay: 0.001
+  warmup_epochs: 10
+  warmup_start_factor: 0.1
+  warmup_end_factor: 0.5
+  cosine_end_factor: 0.2
+  grad_clip_norm: 0.5
+  grad_clip_value: null
+  label_smoothing: 0.1
+  gate_grad_multiplier: 1.0
+  moe_aux_loss_weight: 1.0
+  log_interval: 500
+  ckpt_dir: checkpoints_sign2gpt_phoenix2014t
+  save_ckpt: true
+  resume: false
+  grad_accum_steps: 4
+  mixed_precision: bf16
+  eval_every: 1
+  early_stopping_patience: 15
+  generate_during_val: true
+  max_gen_tokens: 64
+  min_gen_tokens: 5
+  num_beams: 6
+  gen_temperature: 1.0
+  gen_length_penalty: 0.7

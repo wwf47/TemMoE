@@ -1,0 +1,91 @@
+# SpaMo temporal MoE on Phoenix-2014T (e4 k1, token routing, Flan-T5-XL).
+model:
+  target: spamo.t5_slt.FlanT5SLT
+  params:
+    lr: 6.0e-4
+    monitor: val/bleu4
+    model_name: google/flan-t5-xl
+    cache_dir: /path/to/hf_cache
+    inter_hidden: 768
+    input_size: 2048
+    beam_size: 5
+    max_frame_len: 512
+    max_txt_len: 64
+    frame_sample_rate: 1
+    prompt: "Translate the given sentence into {}."
+    tuning_type: lora
+    lora_r: 16
+    lora_alpha: 32
+    lora_dropout: 0.1
+    fusion_mode: joint
+    warm_up_steps: 0
+    cross_modal_align: true
+    combined_loss: true
+    alpha: 1.0
+    use_in_context: true
+    num_in_context: 3
+    use_temporal_moe: true
+    temporal_routing_granularity: token
+    temporal_num_experts: 4
+    temporal_top_k: 1
+    temporal_use_shared_expert: true
+    temporal_moe_aux_loss_weight: 0.02
+    temporal_moe_router_noise: 0.10
+    temporal_router_temperature: 1.3
+
+lightning:
+  callback:
+    learning_rate_logger:
+      target: pytorch_lightning.callbacks.LearningRateMonitor
+      params:
+        logging_interval: step
+  trainer:
+    accumulate_grad_batches: 2
+    accelerator: gpu
+    devices: 1
+    max_epochs: 500
+    gradient_clip_val: 1.0
+    check_val_every_n_epoch: 2
+    precision: bf16
+
+data:
+  target: dataset.datamodule.DataModuleFromConfig
+  params:
+    batch_size: 8
+    num_workers: 4
+    train:
+      target: dataset.p14t.Phoenix14T
+      params:
+        anno_root: ./preprocess/Phoenix14T
+        vid_root: ./dataset/Phoenix14T
+        feat_root: /path/to/spa_feat_p14t
+        mae_feat_root: /path/to/mo_feat_p14t
+        mode: train
+        spatial: true
+        spatiotemporal: true
+        spatial_postfix: ""
+        spatiotemporal_postfix: ""
+    validation:
+      target: dataset.p14t.Phoenix14T
+      params:
+        anno_root: ./preprocess/Phoenix14T
+        vid_root: ./dataset/Phoenix14T
+        feat_root: /path/to/spa_feat_p14t
+        mae_feat_root: /path/to/mo_feat_p14t
+        mode: dev
+        spatial: true
+        spatiotemporal: true
+        spatial_postfix: ""
+        spatiotemporal_postfix: ""
+    test:
+      target: dataset.p14t.Phoenix14T
+      params:
+        anno_root: ./preprocess/Phoenix14T
+        vid_root: ./dataset/Phoenix14T
+        feat_root: /path/to/spa_feat_p14t
+        mae_feat_root: /path/to/mo_feat_p14t
+        mode: test
+        spatial: true
+        spatiotemporal: true
+        spatial_postfix: ""
+        spatiotemporal_postfix: ""
